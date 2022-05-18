@@ -6,14 +6,20 @@ app.use(bodyParser.urlencoded({extended: true}));
 app.set('view engine', 'ejs');
 
 const urlDatabase = {
-  b2xVn2: 'http://www.lighthouselabs.ca',
+  b2xVn2: 'http://www.lighthouselabs.ca'
 };
 
 app.post('/urls', (req, res) => {
   const shortURL = generateRandomString() 
   urlDatabase[shortURL] = req.body.longURL;
   res.redirect(`/urls/${shortURL}`);
-})
+});
+
+app.post('/urls/:shortURL/delete', (req, res) => {
+  const shortURL = req.params.shortURL;
+  delete urlDatabase[shortURL];
+  res.redirect('/urls');
+});
 
 app.get('/urls/new', (req, res) => {
   res.render('urls_new');
