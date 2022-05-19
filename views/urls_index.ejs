@@ -14,34 +14,43 @@
   </header>
   <main style="margin: 1em;">
     <h3>My URLs</h3>
-    <table class="table">
-      <thead>
-        <tr>
-          <th scope="col">Short URL</th>
-          <th scope="col">Long URL</th>
-          <th scope="col">Edit</th>
-          <th scope="col">Delete</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% for(let url in urls) { %>
+    <% if (!user) { %>
+      <h6>Please login or register first</h6>
+    <% } %>
+    <% if (user) { %>
+      <table class="table">
+        <thead>
           <tr>
-            <td><%= url %></td>
-            <td><a href= <%= urls[url] %>> <%= urls[url] %> </a></td>
-            <td>
-              <form method="POST" action="/urls/<%= url %>/edit">
-                <button type="submit" class="btn btn-primary">Edit</button>
-              </form>
-            </td>
-            <td>
-              <form method="POST" action="/urls/<%= url %>/delete">
-                <button type="submit" class="btn btn-primary">Delete</button>
-              </form>
-            </td>
+            <th scope="col">Short URL</th>
+            <th scope="col">Long URL</th>
+            <th scope="col">Edit</th>
+            <th scope="col">Delete</th>
           </tr>
-        <% } %>
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          <% for(let url in urls) { %>
+            <tr>
+              <td><%= url %></td>
+              <td><a href= <%= urls[url].longURL %>> <%= urls[url].longURL %> </a></td>
+              <td>
+                <% if (urls[url].userID === user.id) { %>
+                  <form method="POST" action="/urls/<%= url %>/edit">
+                    <button type="submit" class="btn btn-primary">Edit</button>
+                  </form>
+                <% } %>
+              </td>
+              <td>
+                <% if (urls[url].userID === user.id) { %>
+                  <form method="POST" action="/urls/<%= url %>/delete">
+                    <button type="submit" class="btn btn-primary">Delete</button>
+                  </form>
+                <% } %>
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    <% } %>
   </main>
   <!-- Bootstrap JS -->
   <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
