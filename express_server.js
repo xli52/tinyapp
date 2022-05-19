@@ -47,13 +47,18 @@ app.post('/logout', (req, res) => {
 });
 
 app.post('/register', (req, res) => {
+  if (!req.body.email || ! req.body.password) {
+    return res.status(400).send('Please enter an email address and a password');
+  }
+  if (findUserIDWithEmail(req.body.email)) {
+    return res.status(400).send('Email has been linked to an existing account');
+  }
   const id = generateRandomString();
   const email = req.body.email;
   const password = req.body.password;
   
   users[id] = { id, email, password };
   res.cookie('userID', id);
-  console.log('users: ', users);
   res.redirect('/urls');
 });
 
@@ -63,12 +68,12 @@ app.get('/u/:shortURL', (req, res) => {
 });
 
 app.get('/register', (req, res) => {
-  const user = users[req.cookies['userID'];
+  const user = users[req.cookies['userID']];
   res.render('urls_register', {user});
 });
 
 app.get('/urls/new', (req, res) => {
-  const user = users[req.cookies['userID'];
+  const user = users[req.cookies['userID']];
   res.render('urls_new', {user});
 });
 
@@ -97,4 +102,12 @@ function generateRandomString() {
     randomString += charString.charAt(randomIndex);
   }
   return randomString;
+}
+
+function findUserIDWithEmail(email) {
+  let foundUserID = null;
+  for (userID in users) {
+    if (users[userID].email === email) foundUserID = userID;
+  }
+  return foundUserID;
 }
