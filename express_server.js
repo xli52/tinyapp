@@ -37,7 +37,9 @@ app.post('/urls/:shortURL/edit', (req, res) => {
 });
 
 app.post('/login', (req, res) => {
-  res.cookie('username', req.body.username);
+  const email = req.body.email;
+  const userID = findUserIDWithEmail(email);
+  res.cookie('userID', userID);
   res.redirect('/urls');
 });
 
@@ -70,6 +72,11 @@ app.get('/u/:shortURL', (req, res) => {
 app.get('/register', (req, res) => {
   const user = users[req.cookies['userID']];
   res.render('urls_register', {user});
+});
+
+app.get('/login', (req, res) => {
+  const user = users[req.cookies['userID']];
+  res.render('urls_login', {user});
 });
 
 app.get('/urls/new', (req, res) => {
