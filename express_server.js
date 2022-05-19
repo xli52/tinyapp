@@ -44,6 +44,10 @@ app.post('/logout', (req, res) => {
   res.redirect('/urls');
 });
 
+app.get('/register', (req, res) => {
+  res.render('urls_register', {username: req.cookies['username']});
+});
+
 app.get('/urls/new', (req, res) => {
   res.render('urls_new', {username: req.cookies['username']});
 });
