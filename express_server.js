@@ -36,28 +36,38 @@ app.post('/urls/:shortURL/edit', (req, res) => {
   res.redirect(`/urls/${shortURL}`);
 });
 
+app.post('/logout', (req, res) => {
+  res.clearCookie('userID');
+  res.redirect('/urls');
+});
+
 app.post('/login', (req, res) => {
   const email = req.body.email;
+  const password = req.body.password;
+  if (!email || !password) {
+    return res.status(400).send('Please enter an email address and a password');
+  }
   const userID = findUserIDWithEmail(email);
+  if (!userID) {
+    return res.status(403).send('User not found');
+  }
+  if (users[userID].password !== password) {
+    return res.status(403).send('Incorrect password');
+  }
   res.cookie('userID', userID);
   res.redirect('/urls');
 });
 
-app.post('/logout', (req, res) => {
-  res.clearCookie('username');
-  res.redirect('/urls');
-});
-
 app.post('/register', (req, res) => {
-  if (!req.body.email || ! req.body.password) {
+  const email = req.body.email;
+  const password = req.body.password;
+  if (!email || !password) {
     return res.status(400).send('Please enter an email address and a password');
   }
-  if (findUserIDWithEmail(req.body.email)) {
+  if (findUserIDWithEmail(email)) {
     return res.status(400).send('Email has been linked to an existing account');
   }
   const id = generateRandomString();
-  const email = req.body.email;
-  const password = req.body.password;
   
   users[id] = { id, email, password };
   res.cookie('userID', id);
