@@ -11,6 +11,8 @@ const urlDatabase = {
   AaAaAa: 'http://www.lighthouselabs.ca'
 };
 
+const users = {};
+
 app.post('/urls', (req, res) => {
   const shortURL = generateRandomString() 
   urlDatabase[shortURL] = req.body.longURL;
@@ -44,17 +46,15 @@ app.post('/logout', (req, res) => {
   res.redirect('/urls');
 });
 
-app.get('/register', (req, res) => {
-  res.render('urls_register', {username: req.cookies['username']});
-});
-
-app.get('/urls/new', (req, res) => {
-  res.render('urls_new', {username: req.cookies['username']});
-});
-
-app.get('/urls', (req, res) => {
-  const templateVars = {username: req.cookies['username'], urls: urlDatabase };
-  res.render('urls_index', templateVars);
+app.post('/register', (req, res) => {
+  const id = generateRandomString();
+  const email = req.body.email;
+  const password = req.body.password;
+  
+  users[id] = { id, email, password };
+  res.cookie('userID', id);
+  console.log('users: ', users);
+  res.redirect('/urls');
 });
 
 app.get('/u/:shortURL', (req, res) => {
@@ -62,12 +62,28 @@ app.get('/u/:shortURL', (req, res) => {
   res.redirect(longURL);
 });
 
+app.get('/register', (req, res) => {
+  const user = users[req.cookies['userID'];
+  res.render('urls_register', {user});
+});
+
+app.get('/urls/new', (req, res) => {
+  const user = users[req.cookies['userID'];
+  res.render('urls_new', {user});
+});
+
+app.get('/urls', (req, res) => {
+  const user = users[req.cookies['userID']];
+  res.render('urls_index', { user, urls: urlDatabase });
+});
+
 app.get("/urls/:shortURL", (req, res) => {
   const shortURL = req.params.shortURL;
   const longURL = urlDatabase[req.params.shortURL];
-  const username = req.cookies['username'];
-  res.render("urls_show", { shortURL, longURL, username });
+  const user = users[req.cookies['userID']];
+  res.render("urls_show", { user, shortURL, longURL });
 });
+
 
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
