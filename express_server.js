@@ -1,10 +1,18 @@
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const bodyParser = require("body-parser");
+const bcrypt = require('bcryptjs');
+const cookieSession = require('cookie-session');
+const { generateRandomString, findUserIDWithEmail } = require('./helper');
+
 const PORT = 8080;
 const app = express();
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(cookieParser());
+app.use(cookieSession({
+  name: 'session',
+  keys: ['key1', 'key2', 'key3']
+}));
 app.set('view engine', 'ejs');
 
 const urlDatabase = {};
@@ -12,33 +20,33 @@ const users = {};
 
 // Generate a short url and add to the urlDatabase
 app.post('/urls', (req, res) => {
-  if (!req.cookies.userID) {
-    return handleError(res, 403, 'Invalid request');
+  if (!req.session.userID) {
+    return res.status(403).send('Invalid request');
   }
 
   const longURL = req.body.longURL;
   if (!longURL) {
     return;
   }
-  const shortURL = generateRandomString() 
-  const userID = req.cookies.userID;
+  const shortURL = generateRandomString();
+  const userID = req.session.userID;
   urlDatabase[shortURL] = {longURL, userID};
   res.redirect(`/urls/${shortURL}`);
 });
 
 // Update the longURL of a given url in the urlDatabase
 app.post('/urls/:shortURL', (req, res) => {
-  if (!req.cookies.userID) {
-    return handleError(res, 403, 'Invalid request');
+  if (!req.session.userID) {
+    return res.status(403).send('Invalid request');
   }
 
   const shortURL = req.params.shortURL;
 
   if (!urlDatabase[shortURL]) {
-    return handleError(res, 404, 'Page not found');
+    return res.status(404).send('Page not found');
   }
-  if (urlDatabase[shortURL].userID !== req.cookies.userID) {
-    return handleError(res, 403, 'Invalid request');
+  if (urlDatabase[shortURL].userID !== req.session.userID) {
+    return res.status(403).send('Invalid request');
   }
   
   const longURL = req.body.longURL;
@@ -51,15 +59,15 @@ app.post('/urls/:shortURL', (req, res) => {
 
 // Delele a url from urlDatabase
 app.post('/urls/:shortURL/delete', (req, res) => {
-  if (!req.cookies.userID) {
-    return handleError(res, 403, 'Invalid request');
+  if (!req.session.userID) {
+    return res.status(403).send('Invalid request');
   }
   const shortURL = req.params.shortURL;
   if (!urlDatabase[shortURL]) {
-    return handleError(res, 404, 'Page not found');
+    return res.status(404).send('Page not found');
   }
-  if (urlDatabase[shortURL].userID !== req.cookies.userID) {
-    return handleError(res, 403, 'Invalid request');
+  if (urlDatabase[shortURL].userID !== req.session.userID) {
+    return res.status(403).send('Invalid request');
   }
   delete urlDatabase[shortURL];
   res.redirect('/urls');
@@ -67,15 +75,15 @@ app.post('/urls/:shortURL/delete', (req, res) => {
 
 // Go to the edit page of a given url
 app.post('/urls/:shortURL/edit', (req, res) => {
-  if (!req.cookies.userID) {
-    return handleError(res, 403, 'Invalid request');
+  if (!req.session.userID) {
+    return res.status(403).send('Invalid request');
   }
   const shortURL = req.params.shortURL;
   if (!urlDatabase[shortURL]) {
-    return handleError(res, 404, 'Page not found');
+    return res.status(404).send('Page not found');
   }
-  if (urlDatabase[shortURL].userID !== req.cookies.userID) {
-    return handleError(res, 403, 'Invalid request');
+  if (urlDatabase[shortURL].userID !== req.session.userID) {
+    return res.status(403).send('Invalid request');
   }
 
   res.redirect(`/urls/${shortURL}`);
@@ -83,29 +91,29 @@ app.post('/urls/:shortURL/edit', (req, res) => {
 
 // Logout and clear cookies
 app.post('/logout', (req, res) => {
-  res.clearCookie('userID');
+  req.session = null;
   res.redirect('/urls');
 });
 
 // Check input email and password, login in if valid
-// Add userID to cookie 
+// Add userID to cookie
 app.post('/login', (req, res) => {
-  if (req.cookies.userID) {
-    return handleError(res, 403, 'Please logout first');
+  if (req.session.userID) {
+    return res.status(403).send('Please logout first');
   }
-  const email = req.body.email;
   const password = req.body.password;
+  const email = req.body.email;
   if (!email || !password) {
-    return handleError(res, 400, 'Please enter an email address and a password'); 
+    return res.status(400).send('Please enter an email address and a password');
   }
-  const userID = findUserIDWithEmail(email);
+  const userID = findUserIDWithEmail(email, users);
   if (!userID) {
-    return handleError(res, 403, 'User not found'); 
+    return res.status(403).send('User not found');
   }
-  if (users[userID].password !== password) {
-    return handleError(res, 403, 'Incorrect password'); 
+  if (!bcrypt.compareSync(password, users[userID].password)) {
+    return res.status(403).send('Incorrect password');
   }
-  res.cookie('userID', userID);
+  req.session.userID = userID;
   res.redirect('/urls');
 });
 
@@ -113,22 +121,23 @@ app.post('/login', (req, res) => {
 // Generate a userID for the new user, add new user to users
 // Add userID to the cookie
 app.post('/register', (req, res) => {
-  if (req.cookies.userID) {
-    return handleError(res, 403, 'Please logout first');
+  if (req.session.userID) {
+    return res.status(403).send('Please logout first');
   }
   
   const email = req.body.email;
   const password = req.body.password;
   if (!email || !password) {
-    return handleError(res, 400, 'Please enter an email address and a password');
+    return res.status(400).send('Please enter an email address and a password');
   }
-  if (findUserIDWithEmail(email)) {
-    return handleError(res, 400, 'Email has been linked to an existing account');
+  if (findUserIDWithEmail(email, users)) {
+    return res.status(400).send('Email has been linked to an existing account');
   }
+  const hashedPassword = bcrypt.hashSync(password, 10);
   const id = generateRandomString();
   
-  users[id] = { id, email, password };
-  res.cookie('userID', id);
+  users[id] = { id, email, password: hashedPassword };
+  req.session.userID = id;
   res.redirect('/urls');
 });
 
@@ -140,45 +149,45 @@ app.get('/u/:shortURL', (req, res) => {
 
 // Render the register page
 app.get('/register', (req, res) => {
-  if (req.cookies.userID) {
-    return handleError(res, 403, 'Please logout first');
+  if (req.session.userID) {
+    return res.status(403).send('Please logout first');
   }
-  const user = users[req.cookies['userID']];
+  const user = users[req.session['userID']];
   res.render('urls_register', {user});
 });
 
 // Render the login page
 app.get('/login', (req, res) => {
-  if (req.cookies.userID) {
-    return handleError(res, 403, 'Please logout first');
+  if (req.session.userID) {
+    return res.status(403).send('Please logout first');
   }
-  const user = users[req.cookies['userID']];
+  const user = users[req.session['userID']];
   res.render('urls_login', {user});
 });
 
 // Render the add new url page
 app.get('/urls/new', (req, res) => {
-  const user = users[req.cookies.userID];
+  const user = users[req.session.userID];
   res.render('urls_new', {user});
 });
 
 // Render the url list page
 app.get('/urls', (req, res) => {
-  const user = users[req.cookies.userID];
+  const user = users[req.session.userID];
   res.render('urls_index', { user, urls: urlDatabase });
 });
 
 // Render the show/edit url page of a given short url
 app.get("/urls/:shortURL", (req, res) => {
-  const user = users[req.cookies.userID];
+  const user = users[req.session.userID];
   if (!user) {
-    return handleError(res, 403, 'Please login or register first');
+    return res.status(403).send('Please login or register first');
   }
   
   const shortURL = req.params.shortURL;
   
   if (!urlDatabase[shortURL]) {
-    return handleError(res, 404, 'Page not found')
+    return res.status(404).send('Page not found');
   }
 
   const longURL = urlDatabase[shortURL].longURL;
@@ -187,35 +196,9 @@ app.get("/urls/:shortURL", (req, res) => {
 
 // Throw 404 to catch all invalid urls
 app.get('*', (req, res) => {
-  handleError(res, 404, 'Page not found')
+  res.status(404).send('Page not found');
 });
 
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
-
-// Helper function that generate a random 6-character string
-function generateRandomString() {
-  const charString = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  let randomString = '';
-  for (let i = 0; i < 6; i++) {
-    const randomIndex = Math.floor(Math.random() * charString.length);
-    randomString += charString.charAt(randomIndex);
-  }
-  return randomString;
-}
-
-// Helper function that find the userID from a given email address
-function findUserIDWithEmail(email) {
-  let foundUserID = null;
-  for (userID in users) {
-    if (users[userID].email === email) foundUserID = userID;
-  }
-  return foundUserID;
-}
-
-// Helper function that handle error message
-
-function handleError(res, status, message) {
-  res.status(status).send(message);
-}
