@@ -32,7 +32,7 @@ app.post('/urls', (req, res) => {
   }
   const shortURL = generateRandomString();
   const userID = req.session.userID;
-  urlDatabase[shortURL] = {longURL, userID};
+  urlDatabase[shortURL] = {longURL, userID, visit: 0};
   res.redirect(`/urls/${shortURL}`);
 });
 
@@ -87,7 +87,6 @@ app.post('/urls/:shortURL/edit', (req, res) => {
   if (urlDatabase[shortURL].userID !== req.session.userID) {
     return res.status(403).send('Invalid request');
   }
-
   res.redirect(`/urls/${shortURL}`);
 });
 
@@ -145,7 +144,16 @@ app.post('/register', (req, res) => {
 
 // Go to the longURL website
 app.get('/u/:shortURL', (req, res) => {
-  const longURL = urlDatabase[req.params.shortURL].longURL;
+  const user = users[req.session.userID];
+  if (!user) {
+    return res.status(403).send('Please login or register first');
+  }
+  const shortURL = req.params.shortURL;
+  if (!urlDatabase[shortURL]) {
+    return res.status(404).send('Page not found');
+  }
+  const longURL = urlDatabase[shortURL].longURL;
+  urlDatabase[shortURL].visit += 1;
   res.redirect(longURL);
 });
 
@@ -193,7 +201,8 @@ app.get("/urls/:shortURL", (req, res) => {
   }
 
   const longURL = urlDatabase[shortURL].longURL;
-  res.render("urls_show", { user, shortURL, longURL });
+  const visit = urlDatabase[shortURL].visit;
+  res.render("urls_show", { user, shortURL, longURL, visit });
 });
 
 // Throw 404 to catch all invalid urls
