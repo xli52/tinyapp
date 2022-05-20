@@ -3,6 +3,7 @@ const cookieParser = require('cookie-parser');
 const bodyParser = require("body-parser");
 const bcrypt = require('bcryptjs');
 const cookieSession = require('cookie-session');
+const methodOverride = require('method-override');
 const { generateRandomString, findUserIDWithEmail } = require('./helper');
 
 const PORT = 8080;
@@ -13,6 +14,7 @@ app.use(cookieSession({
   name: 'session',
   keys: ['key1', 'key2', 'key3']
 }));
+app.use(methodOverride('_method'));
 app.set('view engine', 'ejs');
 
 const urlDatabase = {};
@@ -35,7 +37,7 @@ app.post('/urls', (req, res) => {
 });
 
 // Update the longURL of a given url in the urlDatabase
-app.post('/urls/:shortURL', (req, res) => {
+app.put('/urls/:shortURL', (req, res) => {
   if (!req.session.userID) {
     return res.status(403).send('Invalid request');
   }
@@ -58,7 +60,7 @@ app.post('/urls/:shortURL', (req, res) => {
 });
 
 // Delele a url from urlDatabase
-app.post('/urls/:shortURL/delete', (req, res) => {
+app.delete('/urls/:shortURL/delete', (req, res) => {
   if (!req.session.userID) {
     return res.status(403).send('Invalid request');
   }
