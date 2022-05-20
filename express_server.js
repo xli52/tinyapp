@@ -32,7 +32,7 @@ app.post('/urls', (req, res) => {
   }
   const shortURL = generateRandomString();
   const userID = req.session.userID;
-  urlDatabase[shortURL] = {longURL, userID, visit: 0};
+  urlDatabase[shortURL] = {longURL, userID, visits: [], visitors: []};
   res.redirect(`/urls/${shortURL}`);
 });
 
@@ -142,18 +142,31 @@ app.post('/register', (req, res) => {
   res.redirect('/urls');
 });
 
-// Go to the longURL website
+// Visit a shortURL
 app.get('/u/:shortURL', (req, res) => {
+  // Check if user is logged in
   const user = users[req.session.userID];
   if (!user) {
     return res.status(403).send('Please login or register first');
   }
+  // Check if input shortURL is valid
   const shortURL = req.params.shortURL;
   if (!urlDatabase[shortURL]) {
     return res.status(404).send('Page not found');
   }
+  // Add visitor id if this is a first time visit
+  const visitors = urlDatabase[shortURL].visitors;
+  if (!visitors.includes(user.id)) {
+    visitors.push(user.id);
+  }
+  // Create a new visit and add to the visit list
+  const visitorID = generateRandomString();
+  const timeStamp = new Date();
+  timeStamp.toISOString();
+  urlDatabase[shortURL].visits.push({visitorID, timeStamp});
+  //Redirect to the actual web url (longURL)
   const longURL = urlDatabase[shortURL].longURL;
-  urlDatabase[shortURL].visit += 1;
+  console.log(urlDatabase);
   res.redirect(longURL);
 });
 
@@ -201,8 +214,9 @@ app.get("/urls/:shortURL", (req, res) => {
   }
 
   const longURL = urlDatabase[shortURL].longURL;
-  const visit = urlDatabase[shortURL].visit;
-  res.render("urls_show", { user, shortURL, longURL, visit });
+  const visits = urlDatabase[shortURL].visits;
+  const visitors = urlDatabase[shortURL].visitors
+  res.render("urls_show", { user, shortURL, longURL, visits, visitors });
 });
 
 // Throw 404 to catch all invalid urls
